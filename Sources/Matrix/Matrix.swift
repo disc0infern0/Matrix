@@ -5,7 +5,7 @@
 //
 import Foundation
 
-class Matrix<T: RangeReplaceableCollection & Equatable>: Equatable {
+struct Matrix<T: RangeReplaceableCollection & Equatable>: Equatable {
    static func == (lhs: Matrix, rhs: Matrix) -> Bool {
       lhs.wrapped == rhs.wrapped && lhs.rowLength == rhs.rowLength
    }
