@@ -4,10 +4,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "MyMatrix",
+    name: "Matrix",
     products: [
         .library(
-            name: "MyMatrix",
+            name: "Matrix",
             targets: ["Matrix"]),
     ],
     dependencies: [],
