@@ -12,9 +12,10 @@ class Matrix<T: RangeReplaceableCollection & Equatable>: Equatable {
 
    private var wrapped: [T]
    private var rowLength: Int
-   public var row: Row
-   public var column: Column
+   public var row: Row<T>
+   public var column: Column<T>
 
+   // Init with single array of type T, e.g. String
    init(_ wrapped: [T], rowLength: Int ) {
       assert(Double(wrapped.count/rowLength) == Double(wrapped.count) / Double(rowLength), "Array not divisible by rowlength")
       self.wrapped = wrapped
@@ -23,10 +24,13 @@ class Matrix<T: RangeReplaceableCollection & Equatable>: Equatable {
       self.column = Column(wrapped: wrapped, rowLength: rowLength)
    }
 
-   internal class Column {
+   internal class Column<T: RangeReplaceableCollection & Equatable> {
       private var wrapped: [T]
       private var rowLength: Int
       private var numRows: Int { wrapped.count / rowLength }
+      static func == (lhs: Column, rhs: Column) -> Bool {
+         lhs.wrapped == rhs.wrapped && lhs.rowLength == rhs.rowLength
+      }
       init(wrapped: [T], rowLength: Int ) {
          self.wrapped = wrapped; self.rowLength = rowLength
       }
@@ -41,9 +45,12 @@ class Matrix<T: RangeReplaceableCollection & Equatable>: Equatable {
          }
       }
    }
-   internal class Row {
+   internal class Row<T: RangeReplaceableCollection & Equatable> {
       private var wrapped: [T]
       private var rowLength: Int
+      static func == (lhs: Row, rhs: Row) -> Bool {
+         lhs.wrapped == rhs.wrapped && lhs.rowLength == rhs.rowLength
+      }
       init(wrapped: [T], rowLength: Int ) {
          self.wrapped = wrapped; self.rowLength = rowLength
       }
