@@ -5,15 +5,15 @@ import PackageDescription
 
 let package = Package(
     name: "Matrix",
+    platforms: [ .macOS(.v10_15), .iOS(.v13) ],
     products: [
         .library(
             name: "Matrix",
             targets: ["Matrix"]),
     ],
-    dependencies: [],
     targets: [
         .target(
             name: "Matrix",
-            dependencies: []),
+            path: "Sources"),
     ]
 )
