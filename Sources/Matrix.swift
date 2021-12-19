@@ -34,7 +34,6 @@ class Column<T: Equatable & RangeReplaceableCollection> {
       }
       set {
          assert(newValue.count == wrapped.colLength, "Invalid column length of newValue(\(newValue.count))")
-         print("Column setter.  collength: \(wrapped.colLength)")
          for i in 0..<wrapped.colLength {
             let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: i*wrapped.rowLength + col)
             wrapped.values[index] = newValue[i]
@@ -58,7 +57,6 @@ class Row<T: Equatable & RangeReplaceableCollection> {
       }
       set {
          assert(newValue.count == wrapped.rowLength,"Invalid row length of newValue")
-         print("Row setter.  rowlength: \(wrapped.rowLength)")
          let indexStart = wrapped.values.index(wrapped.values.startIndex, offsetBy: row * wrapped.rowLength)
          let indexEnd = wrapped.values.index(wrapped.values.startIndex, offsetBy: ((row+1)*wrapped.rowLength-1))
          wrapped.values.replaceSubrange(indexStart...indexEnd, with: newValue)
@@ -78,7 +76,7 @@ public final class Matrix<T: Equatable & RangeReplaceableCollection> : DynamicPr
       row = Row(wrapped: w)
       column = Column(wrapped: w)
       wrapped = w
-      cancellable = w.$values.sink { _ in self.objectWillChange.send() }
+      cancellable = w.$values.sink { [weak self] _ in self?.objectWillChange.send() }
    }
    public init() {
       let w = Wrapped([T()], rowLength: 0)
