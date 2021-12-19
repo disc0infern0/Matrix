@@ -85,8 +85,9 @@ extension Matrix {
       }
    }
 }
+
 extension Array {
-   func asString() -> String {
+   public func asString() -> String {
       self.reduce("") {i,j in return "\(i)\(j) "  }
    }
 }
