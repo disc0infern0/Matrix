@@ -6,69 +6,12 @@
 import SwiftUI
 import Combine
 
-class Wrapped<T: Equatable & RangeReplaceableCollection>: Equatable, ObservableObject, DynamicProperty {
-   @Published var values: [T]
-   let rowLength: Int
-   var colLength: Int { values.count / rowLength }
-   init(_ values: [T], rowLength: Int) {
-      self.values = values
-      self.rowLength = rowLength
-   }
-   static func == (lhs: Wrapped<T>, rhs: Wrapped<T>) -> Bool {
-      lhs.values == rhs.values && lhs.rowLength == rhs.rowLength
-   }
-}
-
-class Column<T: Equatable & RangeReplaceableCollection> {
-   var wrapped: Wrapped<T>
-   init(wrapped: Wrapped<T>) { self.wrapped = wrapped }
-
-   subscript(col: Int) -> [T] {
-      get {
-         var tmp = [T()]
-         for i in 0..<wrapped.colLength {
-            let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: i*wrapped.rowLength + col)
-            tmp.append(T(wrapped.values[index]))
-         }
-         return tmp
-      }
-      set {
-         assert(newValue.count == wrapped.colLength, "Invalid column length of newValue(\(newValue.count))")
-         for i in 0..<wrapped.colLength {
-            let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: i*wrapped.rowLength + col)
-            wrapped.values[index] = newValue[i]
-         }
-      }
-   }
-}
-
-class Row<T: Equatable & RangeReplaceableCollection> {
-   var wrapped: Wrapped<T>
-   init(wrapped: Wrapped<T>) { self.wrapped = wrapped }
-
-   subscript(row: Int) -> [T] {
-      get {
-         let indexStart = wrapped.values.index(wrapped.values.startIndex, offsetBy: row*wrapped.rowLength)
-         var tmp = [T()]
-         for i in 0..<wrapped.rowLength {
-            tmp.append( T(wrapped.values[wrapped.values.index(indexStart, offsetBy: i)]))
-         }
-         return tmp
-      }
-      set {
-         assert(newValue.count == wrapped.rowLength,"Invalid row length of newValue")
-         let indexStart = wrapped.values.index(wrapped.values.startIndex, offsetBy: row * wrapped.rowLength)
-         let indexEnd = wrapped.values.index(wrapped.values.startIndex, offsetBy: ((row+1)*wrapped.rowLength-1))
-         wrapped.values.replaceSubrange(indexStart...indexEnd, with: newValue)
-      }
-   }
-}
-
 public final class Matrix<T: Equatable & RangeReplaceableCollection> : DynamicProperty, ObservableObject {
-   var wrapped: Wrapped<T> { willSet { objectWillChange.send() } }
+   public var row: Row
+   public var column: Column
+
+   private var wrapped: Wrapped { willSet { objectWillChange.send() } }  // stores the 1d array values for the matrix
    private var cancellable: AnyCancellable?
-   var column: Column<T>
-   var row: Row<T>
 
    public init(values: [T], rowLength: Int) {
       assert(Double(values.count/rowLength) == Double(values.count) / Double(rowLength), "Array not divisible by rowlength")
@@ -78,36 +21,100 @@ public final class Matrix<T: Equatable & RangeReplaceableCollection> : DynamicPr
       wrapped = w
       cancellable = w.$values.sink { [weak self] _ in self?.objectWillChange.send() }
    }
-   public init() {
-      let w = Wrapped([T()], rowLength: 0)
-      row = Row(wrapped: w)
-      column = Column(wrapped: w)
-      wrapped = w
-   }
-   func printme() {
-      print("From the Matrix")
-      var tmp=""
-      for row in 0..<wrapped.colLength {
-         for col in 0..<wrapped.rowLength {
-            tmp = tmp + "\(wrapped.values[wrapped.values.index(wrapped.values.startIndex, offsetBy: row*wrapped.rowLength+col)])"
-         }
-         print(tmp)
-         tmp=""
+}
+
+extension Matrix {
+   class Wrapped: ObservableObject {
+      @Published fileprivate var values: [T]
+      public let rowLength: Int
+      public var colLength: Int { values.count / rowLength }
+      init(_ values: [T], rowLength: Int) {
+         self.values = values
+         self.rowLength = rowLength
       }
    }
+   public var rowLength: Int { wrapped.rowLength }
+   public var colLength: Int { wrapped.colLength }
+   public var values: [T] { wrapped.values }
+}
 
-   func indexIsValid(row: Int, column: Int) -> Bool {
+extension Matrix {
+   public class Column {
+      private var wrapped: Wrapped
+      fileprivate init(wrapped: Wrapped) { self.wrapped = wrapped }
+
+      public subscript(col: Int) -> [T] {
+         get {
+            var column = [T()]
+            for i in 0..<wrapped.colLength {
+               let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: i*wrapped.rowLength + col)
+               column.append(T(wrapped.values[index]))
+            }
+            return column
+         }
+         set {
+            assert(newValue.count == wrapped.colLength, "Invalid column length of newValue(\(newValue.count))")
+            for i in 0..<wrapped.colLength {
+               let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: i*wrapped.rowLength + col)
+               wrapped.values[index] = newValue[i]
+            }
+         }
+      }
+   }
+}
+
+extension Matrix {
+   public class Row {
+      private var wrapped: Wrapped
+      fileprivate init(wrapped: Wrapped) { self.wrapped = wrapped }
+      public subscript(row: Int) -> [T] {
+         get {
+            let indexStart = wrapped.values.index(wrapped.values.startIndex, offsetBy: row*wrapped.rowLength)
+            var rowArray = [T()]
+            for i in 0..<wrapped.rowLength {
+               rowArray.append( T(wrapped.values[wrapped.values.index(indexStart, offsetBy: i)]))
+            }
+            return rowArray
+         }
+         set {
+            assert(newValue.count == wrapped.rowLength,"Invalid row length of newValue")
+            let indexStart = wrapped.values.index(wrapped.values.startIndex, offsetBy: row * wrapped.rowLength)
+            let indexEnd = wrapped.values.index(wrapped.values.startIndex, offsetBy: ((row+1)*wrapped.rowLength-1))
+            wrapped.values.replaceSubrange(indexStart...indexEnd, with: newValue)
+         }
+      }
+   }
+}
+extension Array {
+   func asString() -> String {
+      self.reduce("") {i,j in return "\(i)\(j) "  }
+   }
+}
+extension Matrix {
+   public func printme() {
+      print("From the Matrix")
+      for row in 0..<wrapped.colLength {
+         print(self.row[row].asString())
+      }
+   }
+}
+
+// MARK - Matrix subscript [row][col]
+extension Matrix {
+   private func indexIsValid(row: Int, column: Int) -> Bool {
       return row * wrapped.rowLength + column < wrapped.values.count
    }
 
-   subscript(row: Int, column: Int) -> T {
+   public subscript(row: Int, column: Int) -> T {
       get {
          assert(indexIsValid(row: row, column: column), "Index out of range")
-         return wrapped.values[row*wrapped.rowLength + column]
+         let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: row*wrapped.rowLength + column)
+         return wrapped.values[index]
       }
       set {
          assert(indexIsValid(row: row, column: column), "Index out of range")
-         wrapped.values[row*wrapped.rowLength + column] = newValue
+         let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: row*wrapped.rowLength + column)
+         wrapped.values[index] = newValue
       }
    }
 }
@@ -117,8 +124,6 @@ extension Matrix: RangeReplaceableCollection {
 
    public typealias Index = Array<T>.Index
    public typealias Element = T
-
-
 
    // The upper and lower bounds of the collection, used in iterations
    public var startIndex: Index { return wrapped.values.startIndex }
@@ -134,6 +139,11 @@ extension Matrix: RangeReplaceableCollection {
       set { wrapped.values.replaceSubrange(bounds, with: newValue)}
    }
 
+   // Empty initialiser
+   public convenience init() {
+      self.init(values: [T()], rowLength: 0)
+   }
+
    // Required Method that returns the next index when iterating
    public func index(after i: Index) -> Index {
       return wrapped.values.index(after: i)
@@ -144,6 +154,6 @@ extension Matrix: RangeReplaceableCollection {
 
 extension Matrix: Equatable {
    public static func == (lhs: Matrix, rhs: Matrix) -> Bool {
-      lhs.wrapped == rhs.wrapped
+      lhs.wrapped.values == rhs.wrapped.values && lhs.wrapped.rowLength == rhs.wrapped.rowLength
    }
 }
