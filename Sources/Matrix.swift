@@ -6,18 +6,15 @@
 import SwiftUI
 import Combine
 
-public protocol Matrixable: ExpressibleByArrayLiteral, Equatable
-{}
-
-public final class Matrix<T: Matrixable> : ObservableObject {
+public final class Matrix<T> : ObservableObject {
 
    public var row: Row
    public var column: Column
 
-   private var wrapped: Wrapped { willSet { objectWillChange.send() } }  // stores the 1d array values for the matrix
+   private var wrapped: Wrapped { willSet { objectWillChange.send() } }
    private var cancellable: AnyCancellable?
 
-   public init(values: [T], rowLength: Int) {
+   public init(_ values: [T], rowLength: Int) {
       assert(Double(values.count/rowLength) == Double(values.count) / Double(rowLength), "Array not divisible by rowlength")
       let w = Wrapped(values, rowLength: rowLength)
       row = Row(wrapped: w)
@@ -25,14 +22,10 @@ public final class Matrix<T: Matrixable> : ObservableObject {
       wrapped = w
       cancellable = w.$values.sink { [weak self] _ in self?.objectWillChange.send() }
    }
-   // Empty initialiser
-   public convenience init() {
-      self.init(values: [T.init()], rowLength: 0)
-   }
 }
-let j = Int.init(2)
 
 extension Matrix {
+   /// store the 1d array values for the matrix
    class Wrapped: ObservableObject {
       @Published fileprivate var values: [T]
       public let rowLength: Int
@@ -134,7 +127,6 @@ extension Matrix {
 extension Matrix: RangeReplaceableCollection {
    public typealias Index = Array<T>.Index
    public typealias Element = T
-   public typealias Indices = Int
    public typealias SubSequence = ArraySlice<T>
 
    // Collection required: upper and lower bounds of the collection, used in iterations
@@ -142,12 +134,12 @@ extension Matrix: RangeReplaceableCollection {
    public var endIndex: Index { return wrapped.values.endIndex }
 
    // Collection required: Method that returns the next index when iterating
-   public func index(before i: Index) -> Index {
-      return wrapped.values.index(before: i)
-   }
-
    public func index(after i: Index) -> Index {
       return wrapped.values.index(after: i)
+   }
+
+   public func index(before i: Index) -> Index {
+      return wrapped.values.index(before: i)
    }
 
    // Required subscripts
@@ -159,9 +151,14 @@ extension Matrix: RangeReplaceableCollection {
       get { return wrapped.values[bounds] }
       set { wrapped.values.replaceSubrange(bounds, with: newValue)}
    }
+
+   // Empty initialiser
+   public convenience init() {
+      self.init([], rowLength: 0)
+   }
 }
 
-extension Matrix: Equatable {
+extension Matrix: Equatable where T: Equatable {
    public static func == (lhs: Matrix, rhs: Matrix) -> Bool {
       lhs.wrapped.values == rhs.wrapped.values && lhs.wrapped.rowLength == rhs.wrapped.rowLength
    }
