@@ -6,7 +6,11 @@
 import SwiftUI
 import Combine
 
-public final class Matrix<T: Equatable & RangeReplaceableCollection> : DynamicProperty, ObservableObject {
+public protocol Matrixable: ExpressibleByArrayLiteral, Equatable
+{}
+
+public final class Matrix<T: Matrixable> : ObservableObject {
+
    public var row: Row
    public var column: Column
 
@@ -21,7 +25,12 @@ public final class Matrix<T: Equatable & RangeReplaceableCollection> : DynamicPr
       wrapped = w
       cancellable = w.$values.sink { [weak self] _ in self?.objectWillChange.send() }
    }
+   // Empty initialiser
+   public convenience init() {
+      self.init(values: [T.init()], rowLength: 0)
+   }
 }
+let j = Int.init(2)
 
 extension Matrix {
    class Wrapped: ObservableObject {
@@ -45,10 +54,10 @@ extension Matrix {
 
       public subscript(col: Int) -> [T] {
          get {
-            var column = [T()]
+            var column: [T] = []
             for i in 0..<wrapped.colLength {
                let index = wrapped.values.index(wrapped.values.startIndex, offsetBy: i*wrapped.rowLength + col)
-               column.append(T(wrapped.values[index]))
+               column.append(wrapped.values[index])
             }
             return column
          }
@@ -70,9 +79,9 @@ extension Matrix {
       public subscript(row: Int) -> [T] {
          get {
             let indexStart = wrapped.values.index(wrapped.values.startIndex, offsetBy: row*wrapped.rowLength)
-            var rowArray = [T()]
+            var rowArray: [T] = []
             for i in 0..<wrapped.rowLength {
-               rowArray.append( T(wrapped.values[wrapped.values.index(indexStart, offsetBy: i)]))
+               rowArray.append( wrapped.values[wrapped.values.index(indexStart, offsetBy: i)])
             }
             return rowArray
          }
@@ -121,14 +130,25 @@ extension Matrix {
 }
 
 //------------------------------
-extension Matrix: RangeReplaceableCollection {
 
+extension Matrix: RangeReplaceableCollection {
    public typealias Index = Array<T>.Index
    public typealias Element = T
+   public typealias Indices = Int
+   public typealias SubSequence = ArraySlice<T>
 
-   // The upper and lower bounds of the collection, used in iterations
+   // Collection required: upper and lower bounds of the collection, used in iterations
    public var startIndex: Index { return wrapped.values.startIndex }
    public var endIndex: Index { return wrapped.values.endIndex }
+
+   // Collection required: Method that returns the next index when iterating
+   public func index(before i: Index) -> Index {
+      return wrapped.values.index(before: i)
+   }
+
+   public func index(after i: Index) -> Index {
+      return wrapped.values.index(after: i)
+   }
 
    // Required subscripts
    public subscript(position: Index) -> Element {
@@ -139,18 +159,6 @@ extension Matrix: RangeReplaceableCollection {
       get { return wrapped.values[bounds] }
       set { wrapped.values.replaceSubrange(bounds, with: newValue)}
    }
-
-   // Empty initialiser
-   public convenience init() {
-      self.init(values: [T()], rowLength: 0)
-   }
-
-   // Required Method that returns the next index when iterating
-   public func index(after i: Index) -> Index {
-      return wrapped.values.index(after: i)
-   }
-
-   public typealias SubSequence = ArraySlice<T>
 }
 
 extension Matrix: Equatable {
