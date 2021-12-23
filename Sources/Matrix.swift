@@ -6,8 +6,9 @@
 import SwiftUI
 import Combine
 
-public final class Matrix<T> : ObservableObject {
+public final class Matrix<T>: Identifiable, ObservableObject {
 
+   public let id = UUID().uuidString
    public var row: Row
    public var column: Column
 
@@ -161,5 +162,14 @@ extension Matrix: RangeReplaceableCollection {
 extension Matrix: Equatable where T: Equatable {
    public static func == (lhs: Matrix, rhs: Matrix) -> Bool {
       lhs.wrapped.values == rhs.wrapped.values && lhs.wrapped.rowLength == rhs.wrapped.rowLength
+   }
+}
+
+extension Matrix: Hashable where T: Hashable {
+   public func hash(into hasher: inout Hasher) {
+      for value in self.wrapped.values {
+         hasher.combine(value)
+      }
+      hasher.combine(self.wrapped.rowLength)
    }
 }
